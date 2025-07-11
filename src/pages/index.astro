@@ -1,0 +1,288 @@
+---
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import ThemeToggle from "@/components/ThemeToggle.astro";
+import LoanDetails from "@/components/LoanDetails";
+import ExpensesOverview from "@/components/ExpensesOverview";
+import "../styles/global.css";
+---
+
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>购房支出计算器</title>
+    <script src="/lib/theme-init.js" is:inline></script>
+  </head>
+  <body
+    class="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100 transition-colors duration-200"
+  >
+    <div class="container mx-auto px-4 py-8">
+      <!-- 颜色模式切换 -->
+      <ThemeToggle />
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 输入区域 -->
+        <Card className="dark:border-gray-700 dark:bg-gray-800">
+          <CardHeader>
+            <CardTitle>基本信息</CardTitle>
+            <CardDescription className="dark:text-gray-400"
+              >输入房屋信息计算购房支出</CardDescription
+            >
+          </CardHeader>
+          <CardContent>
+            <div class="space-y-4">
+              <div>
+                <label for="area" class="block text-sm font-medium mb-1"
+                  >房屋面积 (㎡)</label
+                >
+                <Input
+                  id="area"
+                  type="number"
+                  defaultValue="114"
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label for="price" class="block text-sm font-medium mb-1"
+                  >成交价 (万元)</label
+                >
+                <Input
+                  id="price"
+                  type="number"
+                  defaultValue="85"
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label for="downPayment" class="block text-sm font-medium mb-1"
+                  >首付 (万元)</label
+                >
+                <Input
+                  id="downPayment"
+                  type="number"
+                  defaultValue="40"
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label for="loanRate" class="block text-sm font-medium mb-1"
+                  >公积金贷款利率 (%)</label
+                >
+                <Input
+                  id="loanRate"
+                  type="number"
+                  defaultValue="2.6"
+                  step="0.01"
+                  className="w-full"
+                />
+              </div>
+
+              <Button id="calculate" className="w-full">计算购房支出</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- 结果展示区域 -->
+        <div class="space-y-6">
+          <!-- 使用React组件替换原来的支出概览卡片 -->
+          <div id="expenses-overview-container">
+            <ExpensesOverview
+              client:load
+              area={114}
+              price={85}
+              downPayment={40}
+              loanRate={2.6}
+            />
+          </div>
+
+          <div>
+            <div class="custom-tabs">
+              <!-- 标签按钮 -->
+              <div
+                class="grid grid-cols-2 w-full h-9 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-4"
+              >
+                <button
+                  id="tab-30years"
+                  class="custom-tab-trigger py-1 px-4 rounded-md text-sm font-medium transition-all cursor-pointer bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm"
+                  data-target="content-30years"
+                >
+                  30年贷款
+                </button>
+                <button
+                  id="tab-20years"
+                  class="custom-tab-trigger py-1 px-4 rounded-md text-sm font-medium transition-all cursor-pointer text-gray-500 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-700/50"
+                  data-target="content-20years"
+                >
+                  20年贷款
+                </button>
+              </div>
+
+              <!-- 贷款详情React组件 -->
+              <div id="loan-details-container">
+                <LoanDetails
+                  client:idle
+                  title="30年贷款详情"
+                  id="content-30years"
+                  isActive={true}
+                  loanAmount={450000}
+                  monthlyRate={0.00217}
+                  years={30}
+                />
+
+                <LoanDetails
+                  client:idle
+                  title="20年贷款详情"
+                  id="content-20years"
+                  loanAmount={450000}
+                  monthlyRate={0.00217}
+                  years={20}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // 计算相关代码
+        const calculateBtn = document.getElementById("calculate");
+        const areaInput = document.getElementById("area") as HTMLInputElement;
+        const priceInput = document.getElementById("price") as HTMLInputElement;
+        const downPaymentInput = document.getElementById(
+          "downPayment"
+        ) as HTMLInputElement;
+        const loanRateInput = document.getElementById(
+          "loanRate"
+        ) as HTMLInputElement;
+
+        // 初始计算
+        calculateExpenses();
+
+        // 点击计算按钮时更新结果
+        if (calculateBtn) {
+          calculateBtn.addEventListener("click", calculateExpenses);
+        }
+
+        // 接收从ExpensesOverview组件发出的贷款数据
+        document.addEventListener("loan-data", (event: any) => {
+          const { loanAmount, monthlyRate } = event.detail;
+          updateLoanDetailsProps(loanAmount, monthlyRate);
+        });
+
+        function calculateExpenses() {
+          // 获取输入值
+          const area = parseFloat(areaInput?.value || "114"); // 默认114平米
+          const price = parseFloat(priceInput?.value || "85"); // 默认85万
+          const downPayment = parseFloat(downPaymentInput?.value || "40"); // 默认40万
+          const loanRate = parseFloat(loanRateInput?.value || "2.6"); // 默认2.6%
+
+          // 更新ExpensesOverview组件
+          updateExpensesOverviewProps(area, price, downPayment, loanRate);
+        }
+
+        // 更新ExpensesOverview组件属性
+        function updateExpensesOverviewProps(
+          area: number,
+          price: number,
+          downPayment: number,
+          loanRate: number
+        ) {
+          // 使用自定义事件通知React组件
+          const updateEvent = new CustomEvent("expenses-update", {
+            detail: {
+              area,
+              price,
+              downPayment,
+              loanRate,
+            },
+          });
+
+          document.dispatchEvent(updateEvent);
+        }
+
+        // 更新贷款详情组件属性
+        function updateLoanDetailsProps(
+          loanAmount: number,
+          monthlyRate: number
+        ) {
+          // 使用自定义事件通知React组件
+          const loanUpdateEvent = new CustomEvent("loan-update", {
+            detail: {
+              loanAmount,
+              monthlyRate,
+            },
+          });
+
+          document.dispatchEvent(loanUpdateEvent);
+        }
+
+        // 标签切换功能
+        const tabTriggers = document.querySelectorAll(".custom-tab-trigger");
+        const tabContents = document.querySelectorAll(
+          "#content-30years, #content-20years"
+        );
+
+        tabTriggers.forEach((trigger) => {
+          trigger.addEventListener("click", () => {
+            // 更新标签样式
+            tabTriggers.forEach((t) => {
+              t.classList.remove(
+                "bg-white",
+                "dark:bg-gray-700",
+                "text-black",
+                "dark:text-white",
+                "shadow-sm"
+              );
+              t.classList.add(
+                "text-gray-500",
+                "dark:text-gray-400",
+                "hover:bg-white/50",
+                "dark:hover:bg-gray-700/50"
+              );
+            });
+
+            // 隐藏所有内容
+            tabContents.forEach((content) => content.classList.add("hidden"));
+
+            // 激活当前标签
+            trigger.classList.remove(
+              "text-gray-500",
+              "dark:text-gray-400",
+              "hover:bg-white/50",
+              "dark:hover:bg-gray-700/50"
+            );
+            trigger.classList.add(
+              "bg-white",
+              "dark:bg-gray-700",
+              "text-black",
+              "dark:text-white",
+              "shadow-sm"
+            );
+
+            // 显示对应内容
+            const targetId = trigger.getAttribute("data-target") || "";
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+              targetContent.classList.remove("hidden");
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,109 @@
+---
+// ThemeToggle.astro - 颜色模式切换组件
+---
+
+<div class="flex justify-end mb-4">
+  <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-1 inline-flex">
+    <button
+      id="system-mode"
+      class="px-3 py-1 rounded text-sm font-medium bg-white dark:bg-gray-700 shadow-sm"
+      aria-label="跟随系统颜色模式"
+    >
+      系统
+    </button>
+    <button
+      id="light-mode"
+      class="px-3 py-1 rounded text-sm font-medium ml-1 text-gray-500 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-700/50"
+      aria-label="浅色模式"
+    >
+      浅色
+    </button>
+    <button
+      id="dark-mode"
+      class="px-3 py-1 rounded text-sm font-medium ml-1 text-gray-500 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-700/50"
+      aria-label="深色模式"
+    >
+      深色
+    </button>
+  </div>
+</div>
+
+<script>
+  // 获取当前颜色模式
+  const getCurrentMode = () => localStorage.getItem("color-mode") || "system";
+
+  // 颜色模式按钮元素
+  const buttons = {
+    system: document.getElementById("system-mode"),
+    light: document.getElementById("light-mode"),
+    dark: document.getElementById("dark-mode"),
+  };
+
+  // 更新按钮状态
+  const updateModeButtons = (mode: string) => {
+    // 基础样式
+    const inactiveClasses = [
+      "text-gray-500",
+      "dark:text-gray-400",
+      "hover:bg-white/50",
+      "dark:hover:bg-gray-700/50",
+    ];
+    const activeClasses = ["bg-white", "dark:bg-gray-700", "shadow-sm"];
+
+    // 重置所有按钮
+    Object.values(buttons).forEach((btn) => {
+      if (btn) {
+        btn.classList.remove(...activeClasses);
+        btn.classList.add(...inactiveClasses);
+      }
+    });
+
+    // 高亮当前模式按钮
+    const activeBtn = buttons[mode as keyof typeof buttons];
+    if (activeBtn) {
+      activeBtn.classList.add(...activeClasses);
+      activeBtn.classList.remove(...inactiveClasses);
+    }
+  };
+
+  // 设置颜色模式
+  const setColorMode = (mode: string) => {
+    localStorage.setItem("color-mode", mode);
+
+    const isDark =
+      mode === "dark" ||
+      (mode === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+    // 应用颜色模式
+    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.setAttribute(
+      "data-theme",
+      isDark ? "dark" : "light"
+    );
+
+    updateModeButtons(mode);
+  };
+
+  // 文档加载完成后初始化
+  document.addEventListener("DOMContentLoaded", () => {
+    // 初始化按钮状态
+    updateModeButtons(getCurrentMode());
+
+    // 添加按钮点击事件
+    Object.entries(buttons).forEach(([mode, btn]) => {
+      if (btn) {
+        btn.addEventListener("click", () => setColorMode(mode));
+      }
+    });
+
+    // 监听系统颜色模式变化（当选择"跟随系统"时有效）
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", () => {
+        if (getCurrentMode() === "system") {
+          setColorMode("system");
+        }
+      });
+  });
+</script>
