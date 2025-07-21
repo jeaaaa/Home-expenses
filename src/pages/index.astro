@@ -170,6 +170,9 @@ import "../styles/global.css";
           "loanRate"
         ) as HTMLInputElement;
 
+        // 从localStorage加载保存的值
+        loadSavedValues();
+
         // 初始计算
         calculateExpenses();
 
@@ -178,13 +181,59 @@ import "../styles/global.css";
           calculateBtn.addEventListener("click", calculateExpenses);
         }
 
+        // 添加输入框变化时自动保存的功能
+        [areaInput, priceInput, downPaymentInput, loanRateInput].forEach(
+          (input) => {
+            if (input) {
+              input.addEventListener("input", () => {
+                saveCurrentValues();
+                calculateExpenses(); // 实时计算
+              });
+            }
+          }
+        );
+
         // 接收从ExpensesOverview组件发出的贷款数据
         document.addEventListener("loan-data", (event: any) => {
           const { loanAmount, monthlyRate } = event.detail;
           updateLoanDetailsProps(loanAmount, monthlyRate);
         });
 
+        // 从localStorage加载保存的值
+        function loadSavedValues() {
+          const savedArea = localStorage.getItem("houseArea");
+          const savedPrice = localStorage.getItem("housePrice");
+          const savedDownPayment = localStorage.getItem("houseDownPayment");
+          const savedLoanRate = localStorage.getItem("houseLoanRate");
+
+          if (savedArea && areaInput) {
+            areaInput.value = savedArea;
+          }
+          if (savedPrice && priceInput) {
+            priceInput.value = savedPrice;
+          }
+          if (savedDownPayment && downPaymentInput) {
+            downPaymentInput.value = savedDownPayment;
+          }
+          if (savedLoanRate && loanRateInput) {
+            loanRateInput.value = savedLoanRate;
+          }
+        }
+
+        // 保存当前输入值到localStorage
+        function saveCurrentValues() {
+          if (areaInput) localStorage.setItem("houseArea", areaInput.value);
+          if (priceInput) localStorage.setItem("housePrice", priceInput.value);
+          if (downPaymentInput)
+            localStorage.setItem("houseDownPayment", downPaymentInput.value);
+          if (loanRateInput)
+            localStorage.setItem("houseLoanRate", loanRateInput.value);
+        }
+
         function calculateExpenses() {
+          // 保存当前输入值
+          saveCurrentValues();
+
           // 获取输入值
           const area = parseFloat(areaInput?.value || "114"); // 默认114平米
           const price = parseFloat(priceInput?.value || "85"); // 默认85万

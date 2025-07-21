@@ -22,7 +22,7 @@ export default function ExpensesOverview({
   downPayment = 40,
   loanRate = 2.6,
 }: ExpensesOverviewProps) {
-  // 使用state管理内部数据
+  // 使用state管理内部数据，初始值使用props
   const [areaState, setAreaState] = useState(area);
   const [priceState, setPriceState] = useState(price);
   const [downPaymentState, setDownPaymentState] = useState(downPayment);
@@ -54,6 +54,17 @@ export default function ExpensesOverview({
       setPersonalTaxRate(parseFloat(storedPersonalTaxRate));
     if (storedDeedTaxRate) setDeedTaxRate(parseFloat(storedDeedTaxRate));
     if (storedAgencyFeeRate) setAgencyFeeRate(parseFloat(storedAgencyFeeRate));
+
+    // 从localStorage加载基本信息的值
+    const savedArea = localStorage.getItem("houseArea");
+    const savedPrice = localStorage.getItem("housePrice");
+    const savedDownPayment = localStorage.getItem("houseDownPayment");
+    const savedLoanRate = localStorage.getItem("houseLoanRate");
+
+    if (savedArea) setAreaState(parseFloat(savedArea));
+    if (savedPrice) setPriceState(parseFloat(savedPrice));
+    if (savedDownPayment) setDownPaymentState(parseFloat(savedDownPayment));
+    if (savedLoanRate) setLoanRateState(parseFloat(savedLoanRate));
   }, []);
 
   // 当props更改时更新state
