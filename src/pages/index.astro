@@ -159,39 +159,90 @@ import "../styles/global.css";
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        // 计算相关代码
-        const calculateBtn = document.getElementById("calculate");
-        const areaInput = document.getElementById("area") as HTMLInputElement;
-        const priceInput = document.getElementById("price") as HTMLInputElement;
-        const downPaymentInput = document.getElementById(
-          "downPayment"
-        ) as HTMLInputElement;
-        const loanRateInput = document.getElementById(
-          "loanRate"
-        ) as HTMLInputElement;
+        // 获取DOM元素
+        const inputElements = {
+          area: document.getElementById("area") as HTMLInputElement,
+          price: document.getElementById("price") as HTMLInputElement,
+          downPayment: document.getElementById(
+            "downPayment"
+          ) as HTMLInputElement,
+          loanRate: document.getElementById("loanRate") as HTMLInputElement,
+          calculate: document.getElementById("calculate"),
+        };
+
+        // localStorage键名映射
+        const STORAGE_KEYS = {
+          area: "houseArea",
+          price: "housePrice",
+          downPayment: "houseDownPayment",
+          loanRate: "houseLoanRate",
+        };
+
+        // 从localStorage加载保存的值
+        const loadSavedValues = () => {
+          Object.entries(STORAGE_KEYS).forEach(([key, storageKey]) => {
+            const savedValue = localStorage.getItem(storageKey);
+            const input = inputElements[key as keyof typeof inputElements];
+            if (savedValue && input) {
+              (input as HTMLInputElement).value = savedValue;
+            }
+          });
+        };
+
+        // 保存当前输入值到localStorage
+        const saveCurrentValues = () => {
+          Object.entries(STORAGE_KEYS).forEach(([key, storageKey]) => {
+            const input = inputElements[key as keyof typeof inputElements];
+            if (input) {
+              localStorage.setItem(
+                storageKey,
+                (input as HTMLInputElement).value
+              );
+            }
+          });
+        };
+
+        // 获取输入值或默认值
+        const getInputValues = () => {
+          const defaults = {
+            area: 114,
+            price: 85,
+            downPayment: 40,
+            loanRate: 2.6,
+          };
+          return Object.fromEntries(
+            Object.entries(defaults).map(([key, defaultValue]) => {
+              const input = inputElements[key as keyof typeof inputElements];
+              const value = input
+                ? parseFloat((input as HTMLInputElement).value)
+                : defaultValue;
+              return [key, isNaN(value) ? defaultValue : value];
+            })
+          );
+        };
 
         // 从localStorage加载保存的值
         loadSavedValues();
 
-        // 初始计算
-        calculateExpenses();
+        // 延迟初始计算，确保React组件已加载
+        setTimeout(() => {
+          calculateExpensesWithStoredValues();
+        }, 500);
 
         // 点击计算按钮时更新结果
-        if (calculateBtn) {
-          calculateBtn.addEventListener("click", calculateExpenses);
+        if (inputElements.calculate) {
+          inputElements.calculate.addEventListener("click", calculateExpenses);
         }
 
         // 添加输入框变化时自动保存的功能
-        [areaInput, priceInput, downPaymentInput, loanRateInput].forEach(
-          (input) => {
-            if (input) {
-              input.addEventListener("input", () => {
-                saveCurrentValues();
-                calculateExpenses(); // 实时计算
-              });
-            }
+        Object.values(inputElements).forEach((input) => {
+          if (input && input !== inputElements.calculate) {
+            input.addEventListener("input", () => {
+              saveCurrentValues();
+              calculateExpenses(); // 实时计算
+            });
           }
-        );
+        });
 
         // 接收从ExpensesOverview组件发出的贷款数据
         document.addEventListener("loan-data", (event: any) => {
@@ -199,35 +250,40 @@ import "../styles/global.css";
           updateLoanDetailsProps(loanAmount, monthlyRate);
         });
 
-        // 从localStorage加载保存的值
-        function loadSavedValues() {
-          const savedArea = localStorage.getItem("houseArea");
-          const savedPrice = localStorage.getItem("housePrice");
-          const savedDownPayment = localStorage.getItem("houseDownPayment");
-          const savedLoanRate = localStorage.getItem("houseLoanRate");
+        // 监听ExpensesOverview组件准备就绪事件
+        document.addEventListener("expenses-overview-ready", () => {
+          calculateExpensesWithStoredValues();
+        });
 
-          if (savedArea && areaInput) {
-            areaInput.value = savedArea;
-          }
-          if (savedPrice && priceInput) {
-            priceInput.value = savedPrice;
-          }
-          if (savedDownPayment && downPaymentInput) {
-            downPaymentInput.value = savedDownPayment;
-          }
-          if (savedLoanRate && loanRateInput) {
-            loanRateInput.value = savedLoanRate;
-          }
-        }
+        // 使用localStorage中的值进行初始计算
+        function calculateExpensesWithStoredValues() {
+          const savedValues = Object.fromEntries(
+            Object.entries(STORAGE_KEYS).map(([key, storageKey]) => [
+              key,
+              localStorage.getItem(storageKey),
+            ])
+          );
 
-        // 保存当前输入值到localStorage
-        function saveCurrentValues() {
-          if (areaInput) localStorage.setItem("houseArea", areaInput.value);
-          if (priceInput) localStorage.setItem("housePrice", priceInput.value);
-          if (downPaymentInput)
-            localStorage.setItem("houseDownPayment", downPaymentInput.value);
-          if (loanRateInput)
-            localStorage.setItem("houseLoanRate", loanRateInput.value);
+          const defaults = {
+            area: 114,
+            price: 85,
+            downPayment: 40,
+            loanRate: 2.6,
+          };
+          const values = Object.fromEntries(
+            Object.entries(defaults).map(([key, defaultValue]) => [
+              key,
+              savedValues[key] ? parseFloat(savedValues[key]) : defaultValue,
+            ])
+          );
+
+          console.log("初始计算值:", values);
+          updateExpensesOverviewProps(
+            values.area,
+            values.price,
+            values.downPayment,
+            values.loanRate
+          );
         }
 
         function calculateExpenses() {
@@ -235,48 +291,37 @@ import "../styles/global.css";
           saveCurrentValues();
 
           // 获取输入值
-          const area = parseFloat(areaInput?.value || "114"); // 默认114平米
-          const price = parseFloat(priceInput?.value || "85"); // 默认85万
-          const downPayment = parseFloat(downPaymentInput?.value || "40"); // 默认40万
-          const loanRate = parseFloat(loanRateInput?.value || "2.6"); // 默认2.6%
+          const values = getInputValues();
 
           // 更新ExpensesOverview组件
-          updateExpensesOverviewProps(area, price, downPayment, loanRate);
+          updateExpensesOverviewProps(
+            values.area,
+            values.price,
+            values.downPayment,
+            values.loanRate
+          );
         }
 
         // 更新ExpensesOverview组件属性
         function updateExpensesOverviewProps(
-          area: number,
-          price: number,
-          downPayment: number,
-          loanRate: number
+          area: any,
+          price: any,
+          downPayment: any,
+          loanRate: any
         ) {
           // 使用自定义事件通知React组件
           const updateEvent = new CustomEvent("expenses-update", {
-            detail: {
-              area,
-              price,
-              downPayment,
-              loanRate,
-            },
+            detail: { area, price, downPayment, loanRate },
           });
-
           document.dispatchEvent(updateEvent);
         }
 
         // 更新贷款详情组件属性
-        function updateLoanDetailsProps(
-          loanAmount: number,
-          monthlyRate: number
-        ) {
+        function updateLoanDetailsProps(loanAmount: any, monthlyRate: any) {
           // 使用自定义事件通知React组件
           const loanUpdateEvent = new CustomEvent("loan-update", {
-            detail: {
-              loanAmount,
-              monthlyRate,
-            },
+            detail: { loanAmount, monthlyRate },
           });
-
           document.dispatchEvent(loanUpdateEvent);
         }
 

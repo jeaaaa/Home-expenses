@@ -16,6 +16,70 @@ interface ExpensesOverviewProps {
   loanRate?: number;
 }
 
+// 可重用的费用项组件
+interface FeeItemProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  amount: number;
+  onToggle: () => void;
+  hasRate?: boolean;
+  rate?: number;
+  showRateInput?: boolean;
+  onRateToggle?: () => void;
+  onRateChange?: (value: number) => void;
+}
+
+const FeeItem = ({
+  id,
+  label,
+  checked,
+  amount,
+  onToggle,
+  hasRate = false,
+  rate = 0,
+  showRateInput = false,
+  onRateToggle,
+  onRateChange,
+}: FeeItemProps) => (
+  <>
+    <div className="flex justify-between items-center">
+      <div className="flex items-center space-x-2">
+        <Checkbox id={id} checked={checked} onCheckedChange={onToggle} />
+        <div className="flex items-center">
+          <label htmlFor={id} className="text-sm mr-2">
+            {label}
+          </label>
+          {hasRate && (
+            <button
+              onClick={onRateToggle}
+              className="text-xs underline text-blue-500"
+            >
+              ({(rate * 100).toFixed(1)}%)
+            </button>
+          )}
+        </div>
+      </div>
+      <span>{amount.toFixed(0)}元</span>
+    </div>
+
+    {hasRate && showRateInput && (
+      <div className="flex items-center ml-6 space-x-2">
+        <Input
+          type="number"
+          value={(rate * 100).toString()}
+          min="0"
+          max="100"
+          step="0.1"
+          className="w-20 h-6 text-xs"
+          onChange={(e) => onRateChange?.(parseFloat(e.target.value) / 100)}
+        />
+        <span className="text-xs">%</span>
+      </div>
+    )}
+  </>
+);
+
 export default function ExpensesOverview({
   area = 114,
   price = 85,
@@ -27,44 +91,53 @@ export default function ExpensesOverview({
   const [priceState, setPriceState] = useState(price);
   const [downPaymentState, setDownPaymentState] = useState(downPayment);
   const [loanRateState, setLoanRateState] = useState(loanRate);
-  const [personalTaxChecked, setPersonalTaxChecked] = useState(true);
-  const [deedTaxChecked, setDeedTaxChecked] = useState(true);
-  const [providentFundChecked, setProvidentFundChecked] = useState(true);
-  const [warrantChecked, setWarrantChecked] = useState(true);
-  const [agencyChecked, setAgencyChecked] = useState(true);
-
   // 添加税率自定义状态
-  const [personalTaxRate, setPersonalTaxRate] = useState(0.01); // 默认1%
-  const [deedTaxRate, setDeedTaxRate] = useState(0.01); // 默认1%
-  const [agencyFeeRate, setAgencyFeeRate] = useState(0.005); // 默认0.5%
+  const [taxRates, setTaxRates] = useState({
+    personal: 0.01, // 默认1%
+    deed: 0.01, // 默认1%
+    agency: 0.005, // 默认0.5%
+  });
 
   // 是否显示税率输入框
-  const [showPersonalTaxRateInput, setShowPersonalTaxRateInput] =
-    useState(false);
-  const [showDeedTaxRateInput, setShowDeedTaxRateInput] = useState(false);
-  const [showAgencyFeeRateInput, setShowAgencyFeeRateInput] = useState(false);
+  const [showTaxRateInputs, setShowTaxRateInputs] = useState({
+    personal: false,
+    deed: false,
+    agency: false,
+  });
 
-  // 从localStorage加载税率设置
+  // 各种费用的勾选状态
+  const [feesEnabled, setFeesEnabled] = useState({
+    personalTax: true,
+    deedTax: true,
+    providentFund: true,
+    warrant: true,
+    agency: true,
+  });
+
+  // 从localStorage加载设置
   useEffect(() => {
-    const storedPersonalTaxRate = localStorage.getItem("personalTaxRate");
-    const storedDeedTaxRate = localStorage.getItem("deedTaxRate");
-    const storedAgencyFeeRate = localStorage.getItem("agencyFeeRate");
+    // 加载税率设置
+    const storedTaxRates = {
+      personal: parseFloat(localStorage.getItem("personalTaxRate") || "0.01"),
+      deed: parseFloat(localStorage.getItem("deedTaxRate") || "0.01"),
+      agency: parseFloat(localStorage.getItem("agencyFeeRate") || "0.005"),
+    };
+    setTaxRates(storedTaxRates);
 
-    if (storedPersonalTaxRate)
-      setPersonalTaxRate(parseFloat(storedPersonalTaxRate));
-    if (storedDeedTaxRate) setDeedTaxRate(parseFloat(storedDeedTaxRate));
-    if (storedAgencyFeeRate) setAgencyFeeRate(parseFloat(storedAgencyFeeRate));
+    // 加载基本信息的值
+    const savedValues = {
+      area: localStorage.getItem("houseArea"),
+      price: localStorage.getItem("housePrice"),
+      downPayment: localStorage.getItem("houseDownPayment"),
+      loanRate: localStorage.getItem("houseLoanRate"),
+    };
 
-    // 从localStorage加载基本信息的值
-    const savedArea = localStorage.getItem("houseArea");
-    const savedPrice = localStorage.getItem("housePrice");
-    const savedDownPayment = localStorage.getItem("houseDownPayment");
-    const savedLoanRate = localStorage.getItem("houseLoanRate");
-
-    if (savedArea) setAreaState(parseFloat(savedArea));
-    if (savedPrice) setPriceState(parseFloat(savedPrice));
-    if (savedDownPayment) setDownPaymentState(parseFloat(savedDownPayment));
-    if (savedLoanRate) setLoanRateState(parseFloat(savedLoanRate));
+    if (savedValues.area) setAreaState(parseFloat(savedValues.area));
+    if (savedValues.price) setPriceState(parseFloat(savedValues.price));
+    if (savedValues.downPayment)
+      setDownPaymentState(parseFloat(savedValues.downPayment));
+    if (savedValues.loanRate)
+      setLoanRateState(parseFloat(savedValues.loanRate));
   }, []);
 
   // 当props更改时更新state
@@ -78,10 +151,11 @@ export default function ExpensesOverview({
   // 监听来自父组件的更新事件
   useEffect(() => {
     function handleExpensesUpdate(event: CustomEvent) {
-      const { area, price, downPayment } = event.detail;
+      const { area, price, downPayment, loanRate } = event.detail;
       setAreaState(area);
       setPriceState(price);
       setDownPaymentState(downPayment);
+      setLoanRateState(loanRate);
     }
 
     // 类型断言以处理CustomEvent
@@ -89,6 +163,10 @@ export default function ExpensesOverview({
       "expenses-update",
       handleExpensesUpdate as EventListener
     );
+
+    // 通知父组件ExpensesOverview组件已准备好
+    const readyEvent = new CustomEvent("expenses-overview-ready");
+    document.dispatchEvent(readyEvent);
 
     return () => {
       document.removeEventListener(
@@ -98,44 +176,60 @@ export default function ExpensesOverview({
     };
   }, []);
 
-  // 保存税率到localStorage
-  const savePersonalTaxRate = (value: number) => {
-    setPersonalTaxRate(value);
-    localStorage.setItem("personalTaxRate", value.toString());
+  // 通用的税率保存函数
+  const updateTaxRate = (type: keyof typeof taxRates, value: number) => {
+    const newTaxRates = { ...taxRates, [type]: value };
+    setTaxRates(newTaxRates);
+
+    // 保存到localStorage
+    const storageKeys = {
+      personal: "personalTaxRate",
+      deed: "deedTaxRate",
+      agency: "agencyFeeRate",
+    };
+    localStorage.setItem(storageKeys[type], value.toString());
   };
 
-  const saveDeedTaxRate = (value: number) => {
-    setDeedTaxRate(value);
-    localStorage.setItem("deedTaxRate", value.toString());
+  // 通用的输入框显示切换函数
+  const toggleTaxRateInput = (type: keyof typeof showTaxRateInputs) => {
+    setShowTaxRateInputs((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }));
   };
 
-  const saveAgencyFeeRate = (value: number) => {
-    setAgencyFeeRate(value);
-    localStorage.setItem("agencyFeeRate", value.toString());
+  // 通用的费用启用切换函数
+  const toggleFee = (type: keyof typeof feesEnabled) => {
+    setFeesEnabled((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }));
   };
 
-  // 计算数据
-  const pricePerSquareMeter = (priceState * 10000) / areaState;
-  const loanAmount = priceState - downPaymentState;
-  const loanInYuan = loanAmount * 10000;
-  const personalTax = personalTaxChecked
-    ? priceState * personalTaxRate * 10000
-    : 0;
-  const deedTax = deedTaxChecked ? priceState * deedTaxRate * 10000 : 0;
-  const providentFundServiceFee = providentFundChecked ? 2000 : 0;
-  const warrant = warrantChecked ? 2000 : 0;
-  const agencyFee = agencyChecked ? priceState * agencyFeeRate * 10000 : 0;
-  const registrationFee = 80;
+  // 计算各项费用
+  const calculations = {
+    pricePerSquareMeter: (priceState * 10000) / areaState,
+    loanAmount: priceState - downPaymentState,
+    loanInYuan: (priceState - downPaymentState) * 10000,
+    personalTax: feesEnabled.personalTax
+      ? priceState * taxRates.personal * 10000
+      : 0,
+    deedTax: feesEnabled.deedTax ? priceState * taxRates.deed * 10000 : 0,
+    providentFundServiceFee: feesEnabled.providentFund ? 2000 : 0,
+    warrant: feesEnabled.warrant ? 2000 : 0,
+    agencyFee: feesEnabled.agency ? priceState * taxRates.agency * 10000 : 0,
+    registrationFee: 80,
+  };
 
   // 计算总成本
   const totalCost =
     priceState * 10000 +
-    personalTax +
-    deedTax +
-    providentFundServiceFee +
-    warrant +
-    agencyFee +
-    registrationFee;
+    calculations.personalTax +
+    calculations.deedTax +
+    calculations.providentFundServiceFee +
+    calculations.warrant +
+    calculations.agencyFee +
+    calculations.registrationFee;
 
   // 向父组件发送贷款信息
   useEffect(() => {
@@ -144,12 +238,12 @@ export default function ExpensesOverview({
 
     const loanUpdateEvent = new CustomEvent("loan-data", {
       detail: {
-        loanAmount: loanInYuan,
+        loanAmount: calculations.loanInYuan,
         monthlyRate,
       },
     });
     document.dispatchEvent(loanUpdateEvent);
-  }, [loanInYuan, loanRateState]);
+  }, [calculations.loanInYuan, loanRateState]);
 
   return (
     <Card className="dark:border-gray-700 dark:bg-gray-800">
@@ -163,168 +257,67 @@ export default function ExpensesOverview({
         <div className="space-y-2">
           <div className="flex justify-between">
             <span>每平米单价:</span>
-            <span>{pricePerSquareMeter.toFixed(0)}元/㎡</span>
+            <span>{calculations.pricePerSquareMeter.toFixed(0)}元/㎡</span>
           </div>
           <div className="flex justify-between">
             <span>贷款金额:</span>
-            <span>{loanAmount}万元</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="personalTaxCheck"
-                checked={personalTaxChecked}
-                onCheckedChange={(checked) =>
-                  setPersonalTaxChecked(checked === true)
-                }
-              />
-              <div className="flex items-center">
-                <label htmlFor="personalTaxCheck" className="text-sm mr-2">
-                  个税
-                </label>
-                <button
-                  onClick={() =>
-                    setShowPersonalTaxRateInput(!showPersonalTaxRateInput)
-                  }
-                  className="text-xs underline text-blue-500"
-                >
-                  ({(personalTaxRate * 100).toFixed(1)}%)
-                </button>
-              </div>
-            </div>
-            <span>{personalTax.toFixed(0)}元</span>
+            <span>{calculations.loanAmount}万元</span>
           </div>
 
-          {showPersonalTaxRateInput && (
-            <div className="flex items-center ml-6 space-x-2">
-              <Input
-                type="number"
-                value={(personalTaxRate * 100).toString()}
-                min="0"
-                max="100"
-                step="0.1"
-                className="w-20 h-6 text-xs"
-                onChange={(e) =>
-                  savePersonalTaxRate(parseFloat(e.target.value) / 100)
-                }
-              />
-              <span className="text-xs">%</span>
-            </div>
-          )}
+          <FeeItem
+            id="personalTaxCheck"
+            label="个税"
+            checked={feesEnabled.personalTax}
+            amount={calculations.personalTax}
+            onToggle={() => toggleFee("personalTax")}
+            hasRate={true}
+            rate={taxRates.personal}
+            showRateInput={showTaxRateInputs.personal}
+            onRateToggle={() => toggleTaxRateInput("personal")}
+            onRateChange={(value) => updateTaxRate("personal", value)}
+          />
 
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="deedTaxCheck"
-                checked={deedTaxChecked}
-                onCheckedChange={(checked) =>
-                  setDeedTaxChecked(checked === true)
-                }
-              />
-              <div className="flex items-center">
-                <label htmlFor="deedTaxCheck" className="text-sm mr-2">
-                  契税
-                </label>
-                <button
-                  onClick={() => setShowDeedTaxRateInput(!showDeedTaxRateInput)}
-                  className="text-xs underline text-blue-500"
-                >
-                  ({(deedTaxRate * 100).toFixed(1)}%)
-                </button>
-              </div>
-            </div>
-            <span>{deedTax.toFixed(0)}元</span>
-          </div>
+          <FeeItem
+            id="deedTaxCheck"
+            label="契税"
+            checked={feesEnabled.deedTax}
+            amount={calculations.deedTax}
+            onToggle={() => toggleFee("deedTax")}
+            hasRate={true}
+            rate={taxRates.deed}
+            showRateInput={showTaxRateInputs.deed}
+            onRateToggle={() => toggleTaxRateInput("deed")}
+            onRateChange={(value) => updateTaxRate("deed", value)}
+          />
 
-          {showDeedTaxRateInput && (
-            <div className="flex items-center ml-6 space-x-2">
-              <Input
-                type="number"
-                value={(deedTaxRate * 100).toString()}
-                min="0"
-                max="100"
-                step="0.1"
-                className="w-20 h-6 text-xs"
-                onChange={(e) =>
-                  saveDeedTaxRate(parseFloat(e.target.value) / 100)
-                }
-              />
-              <span className="text-xs">%</span>
-            </div>
-          )}
+          <FeeItem
+            id="providentFundCheck"
+            label="公积金贷款服务费:"
+            checked={feesEnabled.providentFund}
+            amount={calculations.providentFundServiceFee}
+            onToggle={() => toggleFee("providentFund")}
+          />
 
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="providentFundCheck"
-                checked={providentFundChecked}
-                onCheckedChange={(checked) =>
-                  setProvidentFundChecked(checked === true)
-                }
-              />
-              <label htmlFor="providentFundCheck" className="text-sm">
-                公积金贷款服务费:
-              </label>
-            </div>
-            <span>2000元</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="warrantCheck"
-                checked={warrantChecked}
-                onCheckedChange={(checked) =>
-                  setWarrantChecked(checked === true)
-                }
-              />
-              <label htmlFor="warrantCheck" className="text-sm">
-                权证:
-              </label>
-            </div>
-            <span>2000元</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="agencyCheck"
-                checked={agencyChecked}
-                onCheckedChange={(checked) =>
-                  setAgencyChecked(checked === true)
-                }
-              />
-              <div className="flex items-center">
-                <label htmlFor="agencyCheck" className="text-sm mr-2">
-                  中介费
-                </label>
-                <button
-                  onClick={() =>
-                    setShowAgencyFeeRateInput(!showAgencyFeeRateInput)
-                  }
-                  className="text-xs underline text-blue-500"
-                >
-                  ({(agencyFeeRate * 100).toFixed(1)}%)
-                </button>
-              </div>
-            </div>
-            <span>{agencyFee.toFixed(0)}元</span>
-          </div>
+          <FeeItem
+            id="warrantCheck"
+            label="权证:"
+            checked={feesEnabled.warrant}
+            amount={calculations.warrant}
+            onToggle={() => toggleFee("warrant")}
+          />
 
-          {showAgencyFeeRateInput && (
-            <div className="flex items-center ml-6 space-x-2">
-              <Input
-                type="number"
-                value={(agencyFeeRate * 100).toString()}
-                min="0"
-                max="100"
-                step="0.1"
-                className="w-20 h-6 text-xs"
-                onChange={(e) =>
-                  saveAgencyFeeRate(parseFloat(e.target.value) / 100)
-                }
-              />
-              <span className="text-xs">%</span>
-            </div>
-          )}
+          <FeeItem
+            id="agencyCheck"
+            label="中介费"
+            checked={feesEnabled.agency}
+            amount={calculations.agencyFee}
+            onToggle={() => toggleFee("agency")}
+            hasRate={true}
+            rate={taxRates.agency}
+            showRateInput={showTaxRateInputs.agency}
+            onRateToggle={() => toggleTaxRateInput("agency")}
+            onRateChange={(value) => updateTaxRate("agency", value)}
+          />
 
           <div className="flex justify-between">
             <span>不动产交易中心工本费:</span>
