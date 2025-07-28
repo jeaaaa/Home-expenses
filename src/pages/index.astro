@@ -119,14 +119,14 @@ import "../styles/global.css";
                   class="custom-tab-trigger py-1 px-4 rounded-md text-sm font-medium transition-all cursor-pointer bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm"
                   data-target="content-30years"
                 >
-                  30年贷款
+                  贷款方案对比
                 </button>
                 <button
                   id="tab-20years"
                   class="custom-tab-trigger py-1 px-4 rounded-md text-sm font-medium transition-all cursor-pointer text-gray-500 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-gray-700/50"
                   data-target="content-20years"
                 >
-                  20年贷款
+                  还款计划
                 </button>
               </div>
 
@@ -134,9 +134,8 @@ import "../styles/global.css";
               <div id="loan-details-container">
                 <LoanDetails
                   client:idle
-                  title="30年贷款详情"
+                  title="等额本金 vs 等额本息"
                   id="content-30years"
-                  isActive={true}
                   loanAmount={450000}
                   monthlyRate={0.00217}
                   years={30}
@@ -144,7 +143,7 @@ import "../styles/global.css";
 
                 <LoanDetails
                   client:idle
-                  title="20年贷款详情"
+                  title="月度还款计划表"
                   id="content-20years"
                   loanAmount={450000}
                   monthlyRate={0.00217}
@@ -330,6 +329,20 @@ import "../styles/global.css";
         const tabContents = document.querySelectorAll(
           "#content-30years, #content-20years"
         );
+
+        // 初始化标签状态 - 默认显示第一个标签页
+        const initTabs = () => {
+          // 隐藏所有内容
+          tabContents.forEach((content) => content.classList.add("hidden"));
+          // 显示第一个内容
+          const firstContent = document.getElementById("content-30years");
+          if (firstContent) {
+            firstContent.classList.remove("hidden");
+          }
+        };
+
+        // 页面加载时初始化标签状态
+        initTabs();
 
         tabTriggers.forEach((trigger) => {
           trigger.addEventListener("click", () => {

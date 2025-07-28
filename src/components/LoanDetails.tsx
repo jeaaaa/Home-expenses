@@ -1,10 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoanOverview } from "./loan/LoanOverview";
+import { LoanComparison } from "./loan/LoanComparison";
+import { RepaymentSchedule } from "./loan/RepaymentSchedule";
+import { YearsAnalysis } from "./loan/YearsAnalysis";
+import { EarlyPaymentAnalysis } from "./loan/EarlyPaymentAnalysis";
+import {
+  calculateLoanPayments,
+  generateEqualPaymentSchedule,
+  generateEqualPrincipalSchedule,
+  generateYearsAnalysis,
+  generateEarlyPaymentAnalysis,
+  type LoanData,
+  type Calculations,
+} from "@/lib/loanCalculations";
 
 interface LoanDetailsProps {
   title: string;
   id: string;
-  isActive?: boolean;
   loanAmount: number; // 贷款金额（元）
   monthlyRate: number; // 月利率
   years: number; // 贷款年限
@@ -13,18 +26,19 @@ interface LoanDetailsProps {
 export function LoanDetails({
   title,
   id,
-  isActive = false,
   loanAmount,
   monthlyRate,
   years,
 }: LoanDetailsProps) {
-  const [loanData, setLoanData] = useState({
+  const [loanData, setLoanData] = useState<LoanData>({
     loanAmount,
     monthlyRate,
-    years,
+    years: 30, // 默认30年
   });
 
-  const [calculations, setCalculations] = useState({
+  // 添加年限选择状态
+  const [selectedYears, setSelectedYears] = useState(30);
+  const [calculations, setCalculations] = useState<Calculations>({
     equalPrincipal: {
       firstPayment: 0,
       totalInterest: 0,
@@ -46,8 +60,20 @@ export function LoanDetails({
       }));
     };
 
+    const handleYearsUpdate = (event: CustomEvent) => {
+      const { years, sourceId } = event.detail;
+      // 只有当事件不是来自当前组件时才更新
+      if (sourceId !== id) {
+        setSelectedYears(years);
+      }
+    };
+
     // 添加自定义事件监听器
     document.addEventListener("loan-update", handleLoanUpdate as EventListener);
+    document.addEventListener(
+      "years-update",
+      handleYearsUpdate as EventListener
+    );
 
     // 清理函数
     return () => {
@@ -55,97 +81,111 @@ export function LoanDetails({
         "loan-update",
         handleLoanUpdate as EventListener
       );
+      document.removeEventListener(
+        "years-update",
+        handleYearsUpdate as EventListener
+      );
     };
   }, []);
 
-  // 当贷款数据变化时重新计算
+  // 当贷款数据或选择的年限变化时重新计算
   useEffect(() => {
-    const months = loanData.years * 12;
+    const newCalculations = calculateLoanPayments(loanData, selectedYears);
+    setCalculations(newCalculations);
+  }, [loanData.loanAmount, loanData.monthlyRate, selectedYears]);
 
-    // 计算等额本金
-    const monthlyPrincipal = loanData.loanAmount / months;
-    const firstPayment =
-      monthlyPrincipal + loanData.loanAmount * loanData.monthlyRate;
-    const firstMonthInterest = loanData.loanAmount * loanData.monthlyRate;
-    const lastMonthInterest = monthlyPrincipal * loanData.monthlyRate;
-    const totalInterest =
-      ((firstMonthInterest + lastMonthInterest) * months) / 2;
+  // 处理年限选择变化
+  const handleYearsChange = (newYears: number) => {
+    setSelectedYears(newYears);
 
-    // 计算等额本息
-    const monthlyPayment =
-      (loanData.loanAmount *
-        loanData.monthlyRate *
-        Math.pow(1 + loanData.monthlyRate, months)) /
-      (Math.pow(1 + loanData.monthlyRate, months) - 1);
-    const totalInterestEP = monthlyPayment * months - loanData.loanAmount;
+    // 派发年限更新事件，通知其他组件同步
+    // 使用setTimeout确保状态更新完成后再派发事件
+    setTimeout(() => {
+      const yearsUpdateEvent = new CustomEvent("years-update", {
+        detail: { years: newYears, sourceId: id },
+      });
+      document.dispatchEvent(yearsUpdateEvent);
+    }, 0);
+  };
 
-    setCalculations({
-      equalPrincipal: {
-        firstPayment,
-        totalInterest,
-      },
-      equalPayment: {
-        monthlyPayment,
-        totalInterest: totalInterestEP,
-      },
-    });
-  }, [loanData.loanAmount, loanData.monthlyRate, loanData.years]);
+  // 判断是否为还款计划页面
+  const isRepaymentSchedule = id === "content-20years";
+
+  // 生成年限选项
+  const yearOptions = [];
+  for (let i = 5; i <= 30; i += 1) {
+    yearOptions.push(i);
+  }
 
   return (
-    <div
-      id={id}
-      className={`transition-opacity duration-200 ease-in-out ${
-        isActive ? "block" : "hidden"
-      }`}
-    >
-      <Card className="dark:border-gray-700 dark:bg-gray-800">
+    <div id={id} className="transition-opacity duration-200 ease-in-out">
+      <Card className="dark:border-gray-700 dark:bg-gray-800/80 bg-white/80 backdrop-blur-sm shadow-xl border-0 dark:shadow-2xl">
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <span className="text-base sm:text-lg">{title}</span>
+            <div className="flex items-center space-x-2">
+              <label
+                htmlFor={`years-${id}`}
+                className="text-sm font-normal text-gray-600 dark:text-gray-400 whitespace-nowrap"
+              >
+                贷款年限:
+              </label>
+              <select
+                id={`years-${id}`}
+                value={selectedYears}
+                onChange={(e) => handleYearsChange(parseInt(e.target.value))}
+                className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[80px]"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}年
+                  </option>
+                ))}
+              </select>
+            </div>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">等额本金</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>首月月供:</span>
-                  <span>
-                    {calculations.equalPrincipal.firstPayment.toFixed(0)}元
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>总利息:</span>
-                  <span>
-                    {(
-                      calculations.equalPrincipal.totalInterest / 10000
-                    ).toFixed(2)}
-                    万元
-                  </span>
-                </div>
-              </div>
-            </div>
+          <LoanOverview
+            loanAmount={loanData.loanAmount}
+            selectedYears={selectedYears}
+            monthlyRate={loanData.monthlyRate}
+          />
 
-            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">等额本息</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>月供:</span>
-                  <span>
-                    {calculations.equalPayment.monthlyPayment.toFixed(0)}元
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>总利息:</span>
-                  <span>
-                    {(calculations.equalPayment.totalInterest / 10000).toFixed(
-                      2
-                    )}
-                    万元
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {!isRepaymentSchedule ? (
+            // 贷款方案对比页面
+            <LoanComparison calculations={calculations} />
+          ) : (
+            // 还款计划表页面
+            <>
+              <RepaymentSchedule
+                loanAmount={loanData.loanAmount}
+                calculations={calculations}
+                generateEqualPaymentSchedule={() =>
+                  generateEqualPaymentSchedule(
+                    loanData,
+                    selectedYears,
+                    calculations.equalPayment.monthlyPayment
+                  )
+                }
+                generateEqualPrincipalSchedule={() =>
+                  generateEqualPrincipalSchedule(loanData, selectedYears)
+                }
+                selectedYears={selectedYears}
+              />
+
+              <YearsAnalysis
+                generateYearsAnalysis={() => generateYearsAnalysis(loanData)}
+                selectedYears={selectedYears}
+              />
+
+              <EarlyPaymentAnalysis
+                generateEarlyPaymentAnalysis={() =>
+                  generateEarlyPaymentAnalysis(loanData)
+                }
+              />
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
