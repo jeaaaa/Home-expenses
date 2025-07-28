@@ -160,17 +160,23 @@ export function EarlyPaymentAnalysis({
                 <div className="font-medium text-emerald-800 dark:text-emerald-300">
                   {data.years}年期贷款
                 </div>
-                <div className={`text-xs px-2 py-1 rounded ${recommend.color} bg-opacity-10`}>
+                <div
+                  className={`text-xs px-2 py-1 rounded ${recommend.color} bg-opacity-10`}
+                >
                   {recommend.level}
                   {isOptimal && data.earlyPaymentAmount > 0 && (
-                    <div className="text-yellow-600 dark:text-yellow-400">最优</div>
+                    <div className="text-yellow-600 dark:text-yellow-400">
+                      最优
+                    </div>
                   )}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">提前还款：</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    提前还款：
+                  </span>
                   <span className="font-medium">
                     {data.earlyPaymentAmount === 0
                       ? "无"
@@ -178,11 +184,17 @@ export function EarlyPaymentAnalysis({
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">还清时间：</span>
-                  <span className="font-medium">{data.actualPayoffTime.toFixed(1)}年</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    还清时间：
+                  </span>
+                  <span className="font-medium">
+                    {data.actualPayoffTime.toFixed(1)}年
+                  </span>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">节省利息：</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    节省利息：
+                  </span>
                   <span className="font-medium text-green-600 dark:text-green-400">
                     {data.earlyPaymentAmount > 0
                       ? `${(data.totalInterestSaved / 10000).toFixed(1)}万`
@@ -190,7 +202,9 @@ export function EarlyPaymentAnalysis({
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">效率评分：</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    效率评分：
+                  </span>
                   <span className="font-medium">
                     {data.earlyPaymentAmount > 0
                       ? `${data.costEfficiency.toFixed(0)}%`

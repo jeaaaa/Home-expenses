@@ -115,7 +115,9 @@ export function YearsAnalysis({
       <div className="md:hidden space-y-3">
         {generateYearsAnalysis().map((data) => {
           const interestSaving =
-            (data.equalPayment.totalInterest - data.equalPrincipal.totalInterest) / 10000;
+            (data.equalPayment.totalInterest -
+              data.equalPrincipal.totalInterest) /
+            10000;
           const isRecommended = data.years >= 20 && data.years <= 25;
           const isOptimal = data.years === 25;
           const isSelected = data.years === selectedYears;
@@ -135,33 +137,53 @@ export function YearsAnalysis({
                 <div className="font-medium text-purple-800 dark:text-purple-300 flex items-center">
                   {data.years}年期
                   {isSelected && (
-                    <span className="ml-1 text-purple-600 dark:text-purple-400">●</span>
+                    <span className="ml-1 text-purple-600 dark:text-purple-400">
+                      ●
+                    </span>
                   )}
                 </div>
                 <div className="text-xs px-2 py-1 rounded">
                   {isOptimal ? (
-                    <span className="text-yellow-600 dark:text-yellow-400 font-medium">⭐ 最优</span>
+                    <span className="text-yellow-600 dark:text-yellow-400 font-medium">
+                      ⭐ 最优
+                    </span>
                   ) : isRecommended ? (
-                    <span className="text-green-600 dark:text-green-400">👍 推荐</span>
+                    <span className="text-green-600 dark:text-green-400">
+                      👍 推荐
+                    </span>
                   ) : data.years < 15 ? (
-                    <span className="text-red-600 dark:text-red-400">📈 压力大</span>
+                    <span className="text-red-600 dark:text-red-400">
+                      📈 压力大
+                    </span>
                   ) : (
-                    <span className="text-gray-500 dark:text-gray-400">💰 利息高</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      💰 利息高
+                    </span>
                   )}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">等额本息月供：</span>
-                  <span className="font-medium">{data.equalPayment.monthlyPayment.toFixed(0)}元</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    等额本息月供：
+                  </span>
+                  <span className="font-medium">
+                    {data.equalPayment.monthlyPayment.toFixed(0)}元
+                  </span>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">等额本金首月：</span>
-                  <span className="font-medium">{data.equalPrincipal.firstPayment.toFixed(0)}元</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    等额本金首月：
+                  </span>
+                  <span className="font-medium">
+                    {data.equalPrincipal.firstPayment.toFixed(0)}元
+                  </span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-gray-600 dark:text-gray-400">利息节省：</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    利息节省：
+                  </span>
                   <span className="font-medium text-green-600 dark:text-green-400">
                     {interestSaving.toFixed(1)}万（等额本金相比等额本息）
                   </span>
